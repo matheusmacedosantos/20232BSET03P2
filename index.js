@@ -22,9 +22,10 @@ app.post("/cats", (req, res) => {
   const { name } = req.body;
 
   const sql = `INSERT INTO cats (name, votes) VALUES (?, 0)`;
+
   db.run(sql, name, function (err) {
     if (err) {
-      res.status(500).send("Error inserting into database");
+      res.status(500).send("Erro ao inserir no banco de dados");
     } else {
       res.status(201).json({ id: this.lastID, name, votes: 0 });
     }
@@ -37,7 +38,7 @@ app.post("/dogs", (req, res) => {
   const sql = `INSERT INTO dogs (name, votes) VALUES (?, 0)`;
   db.run(sql, name, function (err) {
     if (err) {
-      res.status(500).send("Error inserting into database");
+      res.status(500).send("Erro ao inserir no banco de dados");
     } else {
       res.status(201).json({ id: this.lastID, name, votes: 0 });
     }
@@ -47,6 +48,7 @@ app.post("/dogs", (req, res) => {
 app.post("/vote/:animalType/:id", (req, res) => {
   const { animalType, id } = req.params;
 
+  //se há consistencia = error
   // Validando id
   if (isNaN(id) || id < 0) {
     return res.status(400).send("Invalid ID");
@@ -57,10 +59,10 @@ app.post("/vote/:animalType/:id", (req, res) => {
     return res.status(400).send("Invalid animal type");
   }
 
-  const selectSql = `SELECT * FROM ${animalType} WHERE id = ?`;
-  db.get(selectSql, id, (err, row) => {
+  const fetchQuery = `SELECT * FROM ${animalType} WHERE id = ?`;
+  db.get(fetchQuery, id, (err, row) => {
     if (err) {
-      return res.status(500).send("Error querying the database");
+      return res.status(500).send("Erro ao enviar a database");
     }
     if (!row) {
       return res.status(404).send(`No ${animalType} found with ID ${id}`);
