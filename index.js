@@ -1,42 +1,82 @@
-const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
-const bodyParser = require('body-parser');
+const express = require("express");
+const sqlite3 = require("sqlite3").verbose();
+const bodyParser = require("body-parser");
 
 const app = express();
 const port = 3000;
 
 app.use(bodyParser.json());
 
-
-const db = new sqlite3.Database(':memory:');
+const db = new sqlite3.Database(":memory:");
 
 db.serialize(() => {
-  db.run("CREATE TABLE cats (id INT, name TEXT, votes INT)");
-  db.run("CREATE TABLE dogs (id INT, name TEXT, votes INT)");
+  db.run(
+    "CREATE TABLE cats (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, votes INT)"
+  );
+  db.run(
+    "CREATE TABLE dogs (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, votes INT)"
+  );
 });
 
-app.post('/cats', (req, res) => {
-  const name = req.body.name;
-  db.run(`INSERT INTO cats (name, votes) VALUES ('${name}', 0)`, function(err) {
+app.post("/cats", (req, res) => {
+  const { name } = req.body;
+
+  const sql = `INSERT INTO cats (name, votes) VALUES (?, 0)`;
+  db.run(sql, name, function (err) {
     if (err) {
-      res.status(500).send("Erro ao inserir no banco de dados");
+      res.status(500).send("Error inserting into database");
     } else {
       res.status(201).json({ id: this.lastID, name, votes: 0 });
     }
   });
 });
 
-app.post('/dogs', (req, res) => {
-  
+app.post("/dogs", (req, res) => {
+  const { name } = req.body;
+
+  const sql = `INSERT INTO dogs (name, votes) VALUES (?, 0)`;
+  db.run(sql, name, function (err) {
+    if (err) {
+      res.status(500).send("Error inserting into database");
+    } else {
+      res.status(201).json({ id: this.lastID, name, votes: 0 });
+    }
+  });
 });
 
-app.post('/vote/:animalType/:id', (req, res) => {
- 
-  db.run(`UPDATE ${animalType} SET votes = votes + 1 WHERE id = ${id}`);
-  res.status(200).send("Voto computado");
+app.post("/vote/:animalType/:id", (req, res) => {
+  const { animalType, id } = req.params;
+
+  // Validando id
+  if (isNaN(id) || id < 0) {
+    return res.status(400).send("Invalid ID");
+  }
+
+  // Validando animal
+  if (!["cats", "dogs"].includes(animalType)) {
+    return res.status(400).send("Invalid animal type");
+  }
+
+  const selectSql = `SELECT * FROM ${animalType} WHERE id = ?`;
+  db.get(selectSql, id, (err, row) => {
+    if (err) {
+      return res.status(500).send("Error querying the database");
+    }
+    if (!row) {
+      return res.status(404).send(`No ${animalType} found with ID ${id}`);
+    }
+
+    const updateSql = `UPDATE ${animalType} SET votes = votes + 1 WHERE id = ?`;
+    db.run(updateSql, id, function (updateErr) {
+      if (updateErr) {
+        return res.status(500).send("Error updating the database");
+      }
+      res.status(200).send("Vote successfully recorded");
+    });
+  });
 });
 
-app.get('/cats', (req, res) => {
+app.get("/cats", (req, res) => {
   db.all("SELECT * FROM cats", [], (err, rows) => {
     if (err) {
       res.status(500).send("Erro ao consultar o banco de dados");
@@ -46,13 +86,19 @@ app.get('/cats', (req, res) => {
   });
 });
 
-app.get('/dogs', (req, res) => {
-  
+app.get("/dogs", (req, res) => {
+  db.all("SELECT * FROM dogs", [], (err, rows) => {
+    if (err) {
+      res.status(500).send("Erro ao consultar o banco de dados");
+    } else {
+      res.json(rows);
+    }
+  });
 });
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).send('Ocorreu um erro!');
+  res.status(500).send("Ocorreu um erro!");
 });
 
 app.listen(port, () => {
